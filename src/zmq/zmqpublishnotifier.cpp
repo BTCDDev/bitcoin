@@ -11,6 +11,11 @@
 
 static std::multimap<std::string, CZMQAbstractPublishNotifier*> mapPublishNotifiers;
 
+static const char *MSG_HASHBLOCK = "hashblock";
+static const char *MSG_HASHTX    = "hashtx";
+static const char *MSG_RAWBLOCK  = "rawblock";
+static const char *MSG_RAWTX     = "rawtx";
+
 // Internal function to send multipart message
 static int zmq_send_multipart(void *sock, const void* data, size_t size, ...)
 {
@@ -71,6 +76,7 @@ bool CZMQAbstractPublishNotifier::Initialize(void *pcontext)
         if (rc!=0)
         {
             zmqError("Failed to bind address");
+            zmq_close(psocket);
             return false;
         }
 
@@ -119,6 +125,23 @@ void CZMQAbstractPublishNotifier::Shutdown()
     psocket = 0;
 }
 
+bool CZMQAbstractPublishNotifier::SendMessage(const char *command, const void* data, size_t size)
+{
+    assert(psocket);
+
+    /* send three parts, command & data & a LE 4byte sequence number */
+    unsigned char msgseq[sizeof(uint32_t)];
+    WriteLE32(&msgseq[0], nSequence);
+    int rc = zmq_send_multipart(psocket, command, strlen(command), data, size, msgseq, (size_t)sizeof(uint32_t), (void*)0);
+    if (rc == -1)
+        return false;
+
+    /* increment memory only sequence number after sending */
+    nSequence++;
+
+    return true;
+}
+
 bool CZMQPublishHashBlockNotifier::NotifyBlock(const CBlockIndex *pindex)
 {
     uint256 hash = pindex->GetBlockHash();
@@ -126,8 +149,7 @@ bool CZMQPublishHashBlockNotifier::NotifyBlock(const CBlockIndex *pindex)
     char data[32];
     for (unsigned int i = 0; i < 32; i++)
         data[31 - i] = hash.begin()[i];
-    int rc = zmq_send_multipart(psocket, "hashblock", 9, data, 32, 0);
-    return rc == 0;
+    return SendMessage(MSG_HASHBLOCK, data, 32);
 }
 
 bool CZMQPublishHashTransactionNotifier::NotifyTransaction(const CTransaction &transaction)
@@ -137,8 +159,7 @@ bool CZMQPublishHashTransactionNotifier::NotifyTransaction(const CTransaction &t
     char data[32];
     for (unsigned int i = 0; i < 32; i++)
         data[31 - i] = hash.begin()[i];
-    int rc = zmq_send_multipart(psocket, "hashtx", 6, data, 32, 0);
-    return rc == 0;
+    return SendMessage(MSG_HASHTX, data, 32);
 }
 
 bool CZMQPublishOwnedHashTransactionNotifier::NotifyTransaction(const CTransaction &transaction)
@@ -183,8 +204,7 @@ bool CZMQPublishRawBlockNotifier::NotifyBlock(const CBlockIndex *pindex)
         ss << block;
     }
 
-    int rc = zmq_send_multipart(psocket, "rawblock", 8, &(*ss.begin()), ss.size(), 0);
-    return rc == 0;
+    return SendMessage(MSG_RAWBLOCK, &(*ss.begin()), ss.size());
 }
 
 bool CZMQPublishRawTransactionNotifier::NotifyTransaction(const CTransaction &transaction)
@@ -193,6 +213,5 @@ bool CZMQPublishRawTransactionNotifier::NotifyTransaction(const CTransaction &tr
     LogPrint("zmq", "zmq: Publish rawtx %s\n", hash.GetHex());
     CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
     ss << transaction;
-    int rc = zmq_send_multipart(psocket, "rawtx", 5, &(*ss.begin()), ss.size(), 0);
-    return rc == 0;
+    return SendMessage(MSG_RAWTX, &(*ss.begin()), ss.size());
 }
