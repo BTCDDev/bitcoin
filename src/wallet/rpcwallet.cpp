@@ -1251,7 +1251,8 @@ void ListTransactions(const CWalletTx& wtx, const string& strAccount, int nMinDe
             entry.push_back(Pair("account", strSentAccount));
             MaybePushAddress(entry, s.destination);
             entry.push_back(Pair("category", "send"));
-            entry.push_back(Pair("amount", ValueFromAmount(-s.amount)));
+	    entry.push_back(Pair("amount", ValueFromAmount(-s.amount).getValStr()));
+            entry.push_back(Pair("damount", ValueFromAmount(-s.amount)));
             if (pwalletMain->mapAddressBook.count(s.destination))
                 entry.push_back(Pair("label", pwalletMain->mapAddressBook[s.destination].name));
             entry.push_back(Pair("vout", s.vout));
@@ -1291,7 +1292,8 @@ void ListTransactions(const CWalletTx& wtx, const string& strAccount, int nMinDe
                 {
                     entry.push_back(Pair("category", "receive"));
                 }
-                entry.push_back(Pair("amount", ValueFromAmount(r.amount)));
+            	entry.push_back(Pair("amount", ValueFromAmount(r.amount).getValStr()));
+            	entry.push_back(Pair("damount", ValueFromAmount(r.amount)));
                 if (pwalletMain->mapAddressBook.count(r.destination))
                     entry.push_back(Pair("label", account));
                 entry.push_back(Pair("vout", r.vout));
