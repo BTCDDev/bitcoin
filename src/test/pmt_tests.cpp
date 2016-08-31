@@ -37,8 +37,8 @@ BOOST_AUTO_TEST_CASE(pmt_test1)
     seed_insecure_rand(false);
     static const unsigned int nTxCounts[] = {1, 4, 7, 17, 56, 100, 127, 256, 312, 513, 1000, 4095};
 
-    for (int n = 0; n < 12; n++) {
-        unsigned int nTx = nTxCounts[n];
+    for (int i = 0; i < 12; i++) {
+        unsigned int nTx = nTxCounts[i];
 
         // build a block with some dummy transactions
         CBlock block;
@@ -122,7 +122,6 @@ BOOST_AUTO_TEST_CASE(pmt_malleability)
     std::vector<bool> vMatch = boost::assign::list_of(false)(false)(false)(false)(false)(false)(false)(false)(false)(true)(true)(false);
 
     CPartialMerkleTree tree(vTxid, vMatch);
-    std::vector<uint256> vTxid2;
     std::vector<unsigned int> vIndex;
     BOOST_CHECK(tree.ExtractMatches(vTxid, vIndex).IsNull());
 }
